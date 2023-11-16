@@ -19,7 +19,10 @@ Stepper Motor IN4 = 10
 DC (Fan) Motor Speed Pin: 1 = PD4 (Communication 17)
 DC (Fan) Motor IN1: 2 = PD5 (Communication 16)
 DC (Fan) Motor IN2: 7 = PD6 (Communication 15)
+SDA Clock = A4 (Analog In)
+SCL Clock = A5 (Analog In)
 */
+
 
 /*
 To Test:
@@ -34,7 +37,6 @@ LCD
 
 /*
   Missing code:
-  Print real time clock
   Water level and Temp (and their thresholds)
 */
 
@@ -43,6 +45,8 @@ LCD
 #include <LiquidCrystal.h>
 #include <time.h>
 #include <Stepper.h>
+#include <RTClib.h>
+#include <Wire.h>
 
 #define WRITE_HIGH_PD(pin_num)  *port_d |= (0x01 << pin_num);
 #define WRITE_LOW_PD(pin_num)  *port_d &= ~(0x01 << pin_num);
@@ -90,11 +94,18 @@ int mSpeed = 90;
 const int RS = 11, EN = 12, D4 = 2, D5 = 3, D6 = 4, D7 = 5;
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 
+RTC_DS3231 rtc;
+char t[32];
+
 void setup()
 {
   //Serial.begin(9600);
   // setup the UART
   U0init(9600);
+
+  Wire.begin();
+  rtc.begin();
+  rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
 
   lcd.begin(16, 2);
   
@@ -157,9 +168,8 @@ void loop()
   switch (state)
   {
     case 0: // Time of state change and motor position change to serial port
-              //timeToSerial();
+              timeToSerial();
               stateToSerial(state);
-
               U0putchar('\n');
             // Fan OFF
               stopFan();
@@ -174,9 +184,8 @@ void loop()
               }
             break;
     case 1: // Time of state change and motor position change to serial port
-              //timeToSerial();
+              timeToSerial();
               stateToSerial(state);
-              
               U0putchar('\n');
             // Fan OFF
               stopFan();
@@ -200,9 +209,8 @@ void loop()
               }
             break;
     case 2: // Time of state change and motor position change to serial port
-              //timeToSerial();
+              timeToSerial();
               stateToSerial(state);
-              
               U0putchar('\n');
             // LCDTempAndHumidity() ON
             // Start fan motor
@@ -230,9 +238,8 @@ void loop()
               }
             break;
     case 3: // Time of state change and motor position change to serial port
-              //timeToSerial();
+              timeToSerial();
               stateToSerial(state);
-              
               U0putchar('\n');
             // Motor OFF
               stopStepperMotor();
@@ -342,6 +349,18 @@ void timeToSerial(){
   U0putchar(second + '0');
   U0putchar(' ');
   */
+
+
+  DateTime now = rtc.now();
+  char hour = now.hour() + '0';
+  char minute = now.minute() + '0';
+  char second = now.second() + '0';
+  U0putchar(hour);
+  U0putchar(':');
+  U0putchar(minute);
+  U0putchar(':');
+  U0putchar(second);
+  U0putchar(' ');
 }
 
 void stateToSerial(int state){
