@@ -21,8 +21,10 @@ DC (Fan) Motor IN1: 2 = PD5 (Communication 16)
 DC (Fan) Motor IN2: 7 = PD6 (Communication 15)
 SDA Clock = A4 (Analog In)
 SCL Clock = A5 (Analog In)
+Temp/Humidity Sensor = 6 (PWM 6)
+Water Sensor Signal = PK4: A12 (Analog In)
+Water Sensor Power = 13 (PWM 12) PB7
 */
-
 
 /*
 To Test:
@@ -37,28 +39,38 @@ LCD
 
 /*
   Missing code:
-  Water level and Temp (and their thresholds)
 */
 
 // Download time library 1.6.1
 // Download stepper library
+// Download RTCLib
+// Download DS3231
 #include <LiquidCrystal.h>
 #include <time.h>
 #include <Stepper.h>
 #include <RTClib.h>
 #include <Wire.h>
+#include <dht.h>
 
 #define WRITE_HIGH_PD(pin_num)  *port_d |= (0x01 << pin_num);
 #define WRITE_LOW_PD(pin_num)  *port_d &= ~(0x01 << pin_num);
 
+#define WRITE_HIGH_PB(pin_num)  *port_b |= (0x01 << pin_num);
+#define WRITE_LOW_PB(pin_num)  *port_b &= ~(0x01 << pin_num);
+
 #define RDA 0x80
 #define TBE 0x20
+
+#define DHT11_PIN 6
 
 int state;
 // 0 = DISABLED
 // 1 = IDLE
 // 2 = RUNNING
 // 3 = ERROR
+
+float tempThreshold = 0.0;
+int waterThreshold = 1;
 
 // Define Port K Register Pointers
 volatile unsigned char* port_k = (unsigned char*) 0x108; 
@@ -70,12 +82,23 @@ volatile unsigned char* port_d = (unsigned char*) 0x2B;
 volatile unsigned char* ddr_d  = (unsigned char*) 0x2A; 
 volatile unsigned char* pin_d  = (unsigned char*) 0x29;
 
+// Define Port B Register Pointers
+volatile unsigned char* port_b = (unsigned char*) 0x25; 
+volatile unsigned char* ddr_b  = (unsigned char*) 0x24; 
+volatile unsigned char* pin_b  = (unsigned char*) 0x23;
+
 // Setup UART
 volatile unsigned char *myUCSR0A = (unsigned char *)0x00C0;
 volatile unsigned char *myUCSR0B = (unsigned char *)0x00C1;
 volatile unsigned char *myUCSR0C = (unsigned char *)0x00C2;
 volatile unsigned int  *myUBRR0  = (unsigned int *) 0x00C4;
 volatile unsigned char *myUDR0   = (unsigned char *)0x00C6;
+
+// Setup ADC
+volatile unsigned char* my_ADMUX = (unsigned char*) 0x7C;
+volatile unsigned char* my_ADCSRB = (unsigned char*) 0x7B;
+volatile unsigned char* my_ADCSRA = (unsigned char*) 0x7A;
+volatile unsigned int* my_ADC_DATA = (unsigned int*) 0x78;
 
 // Defines the number of steps per rotation
 const int stepsPerRevolution = 2038;
@@ -91,22 +114,35 @@ int dir2 = 6;
 //DC (Fan) Motor Speed
 int mSpeed = 90;
 
+// Setup LCD pins and create LCD instance
 const int RS = 11, EN = 12, D4 = 2, D5 = 3, D6 = 4, D7 = 5;
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 
+// Time/Clock
 RTC_DS3231 rtc;
 char t[32];
+
+// Temp and humidity sensor
+dht DHT;
+
+// Water level from sensor
+int waterLevel;
 
 void setup()
 {
   //Serial.begin(9600);
   // setup the UART
   U0init(9600);
+  
+  // setup the ADC
+  adc_init();
 
+  // setup time/clock
   Wire.begin();
   rtc.begin();
   rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
 
+  // Wake up LCD
   lcd.begin(16, 2);
   
   //set PD0 to OUTPUT
@@ -129,12 +165,19 @@ void setup()
   //set PK2 to INPUT
   *ddr_k &= 0xFB;
 
-
   //set PK3 to INPUT
   *ddr_k &= 0xF7;
+
+  //set PB7 to OUTPUT
+  *ddr_b |= 0x80;
+
+  // Water sensor OFF
+  WRITE_LOW_PK(4);
   
   // enable the pullup resistor on PK2
   *port_k |= 0x04;
+  // enable the pullup resistor on PK3
+  *port_k |= 0x08;
 }
 
 
@@ -152,6 +195,7 @@ void loop()
     *pin_k = *pin_k & 0xFB;
   }
 
+  // If pressed vent moves slowly then stops when let go
   bool ventButton;
   if(*pin_k & 0x08) {
     ventButton = true;
@@ -164,6 +208,20 @@ void loop()
     // PD3
     *pin_k = *pin_k & 0xF7;
   }
+
+  // Get tempurature and humidity
+  int chk = DHT.read11(DHT11_PIN);
+  float temperature = DHT.temperature;
+  float humidity = DHT.humidity;
+
+
+  // Water sensor ON
+  WRITE_HIGH_PB(7);
+  delay(10);
+  //Read water level
+  waterLevel = adc_read(12);
+  // Water sensor OFF
+  WRITE_LOW_PB(7);
 
   switch (state)
   {
@@ -178,6 +236,8 @@ void loop()
               WRITE_HIGH_PD(0);
             // Stop stepper motor
               stopStepperMotor();
+            // LCD
+              LCDDisabled();
             // Monitor start button
               if (startButton) {
                 state = 1;
@@ -193,6 +253,7 @@ void loop()
               // drive PD1 HIGH
               WRITE_HIGH_PD(1);
             // LCDTempAndHumidity() ON
+              LCDTempAndHumidity(temperature, humidity);
             // Monitor water level
             // Respond to change in vent control
               if (ventButton) {
@@ -201,7 +262,13 @@ void loop()
                 stopStepperMotor();
               }
             // if (temp>threshhold) {state=2}
+              if (temperature>tempThreshold) {
+                state=2;
+              }
             // if (waterLevel<=threshold) {state=3}
+              if (waterLevel <= waterThreshold) {
+                state = 3;
+              }
             // if (stopButtonPressed) {state=0}
               if (!startButton) {
                 stopFan();
@@ -213,6 +280,7 @@ void loop()
               stateToSerial(state);
               U0putchar('\n');
             // LCDTempAndHumidity() ON
+              LCDTempAndHumidity(temperature, humidity);
             // Start fan motor
               startFan();
             // Blue LED ON
@@ -230,7 +298,13 @@ void loop()
                 stopStepperMotor();
               }
             // if (temp<=threshhold) {state=1}
+              if (temperature<=tempThreshold) {
+                state=1;
+              }
             // if (waterLevel<threshold) {state=3}
+              if (waterLevel < waterThreshold) {
+                state = 3;
+              }
             // if (stopButtonPressed) {state=0}
               if (!startButton) {
                 stopFan();
@@ -271,7 +345,7 @@ void loop()
   delay(1);
 }
 
-void LCDTempAndHumidity(int temp, int humidity) {
+void LCDTempAndHumidity(float temp, float humidity) {
   lcd.clear();
   lcd.setCursor(0, 0);
   /*
@@ -298,11 +372,13 @@ void LCDTempAndHumidity(int temp, int humidity) {
   lcd.write(29);
   */
 
-  lcd.print("Air Temp (C): " + temp);
+  lcd.print("Air Temp (C): ");
+  lcd.println((float)temp, 2);
 
-  lcd.setCursor(1, 0);
-  lcd.print("Humidity: " + humidity);
-
+  lcd.setCursor(0, 1);
+  lcd.print("Humidity (%): ");
+  lcd.println((float)humidity, 2);
+  delay(60000);
 }
 
 void LCDError() {
@@ -333,6 +409,37 @@ void LCDError() {
   */
 
   lcd.print("ERROR!");
+
+}
+
+void LCDDisabled() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  /*
+  lcd.write('A');
+  lcd.setCursor(0, 1);
+  lcd.write('i');
+  lcd.setCursor(0, 2);
+  lcd.write('r');
+  lcd.setCursor(0, 3);
+  lcd.write(' ');
+  lcd.setCursor(0, 4);
+  lcd.write('T');
+  lcd.setCursor(0, 5);
+  lcd.write('e');
+  lcd.setCursor(0, 6);
+  lcd.write('m');
+  lcd.setCursor(0, 7);
+  lcd.write('p');
+  lcd.setCursor(0, 8);
+  lcd.write(':');
+  lcd.setCursor(0, 9);
+  lcd.write(' ');
+  lcd.setCursor(0, 10);
+  lcd.write(29);
+  */
+
+  lcd.print("DISABLED");
 
 }
 
@@ -440,6 +547,47 @@ void stopFan() {
   WRITE_LOW_PD(dir1);
   WRITE_LOW_PD(dir2);
   WRITE_LOW_PD(speedPin);
+}
+
+// ADC Stuff
+void adc_init()
+{
+  // setup the A register
+  *my_ADCSRA |= 0b10000000; // set bit   7 to 1 to enable the ADC
+  *my_ADCSRA &= 0b11011111; // clear bit 6 to 0 to disable the ADC trigger mode
+  *my_ADCSRA &= 0b11110111; // clear bit 5 to 0 to disable the ADC interrupt
+  *my_ADCSRA &= 0b11111000; // clear bit 0-2 to 0 to set prescaler selection to slow reading
+  // setup the B register
+  *my_ADCSRB &= 0b11110111; // clear bit 3 to 0 to reset the channel and gain bits
+  *my_ADCSRB &= 0b11111000; // clear bit 2-0 to 0 to set free running mode
+  // setup the MUX Register
+  *my_ADMUX  &= 0b01111111; // clear bit 7 to 0 for AVCC analog reference
+  *my_ADMUX  |= 0b01000000; // set bit   6 to 1 for AVCC analog reference
+  *my_ADMUX  &= 0b11011111; // clear bit 5 to 0 for right adjust result
+  *my_ADMUX  &= 0b11100000; // clear bit 4-0 to 0 to reset the channel and gain bits
+}
+unsigned int adc_read(unsigned char adc_channel_num)
+{
+  // clear the channel selection bits (MUX 4:0)
+  *my_ADMUX  &= 0b11100000;
+  // clear the channel selection bits (MUX 5)
+  *my_ADCSRB &= 0b11110111;
+  // set the channel number
+  if(adc_channel_num > 7)
+  {
+    // set the channel selection bits, but remove the most significant bit (bit 3)
+    adc_channel_num -= 8;
+    // set MUX bit 5
+    *my_ADCSRB |= 0b00001000;
+  }
+  // set the channel selection bits
+  *my_ADMUX  += adc_channel_num;
+  // set bit 6 of ADCSRA to 1 to start a conversion
+  *my_ADCSRA |= 0x40;
+  // wait for the conversion to complete
+  while((*my_ADCSRA & 0x40) != 0);
+  // return the result in the ADC data register
+  return *my_ADC_DATA;
 }
 
 // UART Stuff
