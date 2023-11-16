@@ -32,8 +32,14 @@ Clock
 LCD
 */
 
-// Download time library 1.6.1
+/*
+  Missing code:
+  Print real time clock
+  Water level and Temp (and their thresholds)
+*/
 
+// Download time library 1.6.1
+// Download stepper library
 #include <LiquidCrystal.h>
 #include <time.h>
 #include <Stepper.h>
@@ -112,7 +118,7 @@ void setup()
   //set PK2 to INPUT
   *ddr_k &= 0xFB;
 
-  
+
   //set PK3 to INPUT
   *ddr_k &= 0xF7;
   
