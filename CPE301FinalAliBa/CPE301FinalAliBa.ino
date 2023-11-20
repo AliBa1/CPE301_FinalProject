@@ -11,6 +11,7 @@ Blue LED = PD2 (Communication 19)
 Red LED = PD3 (Communication 18)
   330 Resistor for LEDs
   Long side is positive on LEDs
+  Positive into resistor
   Make sure resistors aren't touching
 LCD RS (PWM 11) = 11
 LCD EN (E) (PWM 12) = 12
@@ -23,7 +24,7 @@ LCD D7 (PWM 5) = 5
   VDD into positive
   RW into negative
   K into negative
-  NEED Pontentiometer (Side by itself is to VO, right side to negative and left to positive) 
+  NEED Pontentiometer (Side w/ 1 by itself is to VO, right side to negative and left to positive) 
 Stepper Motor IN1 = 7
 Stepper Motor IN2 = 8
 Stepper Motor IN3 = 9
