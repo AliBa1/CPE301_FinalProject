@@ -2,6 +2,9 @@
 Breadboard Setup
 Start Button = PK2 (Analog In A10)
 Vent (Stepper Motor) Button = PK3 (Analog In A11)
+330 Resistor for LEDs
+Long side is positive on LEDs
+Make sure resistors aren't touching
 Yellow LED = PD0 (Communication 21)
 Green LED = PD1 (Communication 20)
 Blue LED = PD2 (Communication 19)
@@ -28,7 +31,7 @@ Water Sensor Power = 13 (PWM 12) PB7
 
 /*
 To Test:
-LEDs
+LEDs*
 Stepper Motor
 Fan
 Buttons
@@ -50,7 +53,7 @@ LCD
 #include <Stepper.h>
 #include <RTClib.h>
 #include <Wire.h>
-#include <dht.h>
+//#include <dht.h>
 
 #define WRITE_HIGH_PD(pin_num)  *port_d |= (0x01 << pin_num);
 #define WRITE_LOW_PD(pin_num)  *port_d &= ~(0x01 << pin_num);
@@ -63,7 +66,8 @@ LCD
 
 #define DHT11_PIN 6
 
-int state;
+int state = 0;
+//int state;
 // 0 = DISABLED
 // 1 = IDLE
 // 2 = RUNNING
@@ -105,7 +109,7 @@ const int stepsPerRevolution = 2038;
 
 // Creates an instance of stepper class
 // Pins entered in sequence IN1-IN3-IN2-IN4 for proper step sequence
-Stepper myStepper = Stepper(stepsPerRevolution, 7, 9, 8, 10);
+//Stepper myStepper = Stepper(stepsPerRevolution, 7, 9, 8, 10);
 
 //DC (Fan) Motor Pins
 int speedPin = 4;
@@ -115,15 +119,15 @@ int dir2 = 6;
 int mSpeed = 90;
 
 // Setup LCD pins and create LCD instance
-const int RS = 11, EN = 12, D4 = 2, D5 = 3, D6 = 4, D7 = 5;
-LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
+//const int RS = 11, EN = 12, D4 = 2, D5 = 3, D6 = 4, D7 = 5;
+//LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 
 // Time/Clock
 RTC_DS3231 rtc;
 char t[32];
 
 // Temp and humidity sensor
-dht DHT;
+//dht DHT;
 
 // Water level from sensor
 int waterLevel;
@@ -143,7 +147,7 @@ void setup()
   rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
 
   // Wake up LCD
-  lcd.begin(16, 2);
+  //lcd.begin(16, 2);
   
   //set PD0 to OUTPUT
   *ddr_d |= 0x01;
@@ -156,28 +160,28 @@ void setup()
   
   
   //set PD4 to OUTPUT
-  *ddr_d |= 0x10;
+  //*ddr_d |= 0x10;
   //set PD5 to OUTPUT
-  *ddr_d |= 0x20;
+  //*ddr_d |= 0x20;
   //set PD6 to OUTPUT
-  *ddr_d |= 0x40;
+  //*ddr_d |= 0x40;
 
   //set PK2 to INPUT
-  *ddr_k &= 0xFB;
+  //*ddr_k &= 0xFB;
 
   //set PK3 to INPUT
-  *ddr_k &= 0xF7;
+  //*ddr_k &= 0xF7;
 
   //set PB7 to OUTPUT
-  *ddr_b |= 0x80;
+  //*ddr_b |= 0x80;
 
   // Water sensor OFF
-  WRITE_LOW_PK(4);
+  //WRITE_LOW_PK(4);
   
   // enable the pullup resistor on PK2
-  *port_k |= 0x04;
+  //*port_k |= 0x04;
   // enable the pullup resistor on PK3
-  *port_k |= 0x08;
+  //*port_k |= 0x08;
 }
 
 
@@ -185,104 +189,105 @@ void setup()
 void loop()
 {
   bool startButton;
-  if(*pin_k & 0x04) {
-    startButton = true;
+  //if(*pin_k & 0x04) {
+    //startButton = true;
     // To keep true without holding button. Test to make sure it works
-    *pin_k = *pin_k & 0x04;
-  } else {
-    startButton = false;
+    //*pin_k = *pin_k & 0x04;
+  //} else {
+    //startButton = false;
     // To keep false without holding button. Test to make sure it works
-    *pin_k = *pin_k & 0xFB;
-  }
+    //*pin_k = *pin_k & 0xFB;
+  //}
 
   // If pressed vent moves slowly then stops when let go
   bool ventButton;
-  if(*pin_k & 0x08) {
-    ventButton = true;
+  //if(*pin_k & 0x08) {
+    //ventButton = true;
     // To keep true without holding button. Test to make sure it works
     // PD3
-    *pin_k = *pin_k & 0x08;
-  } else {
-    ventButton = false;
+    //*pin_k = *pin_k & 0x08;
+  //} else {
+    //ventButton = false;
     // To keep false without holding button. Test to make sure it works
     // PD3
-    *pin_k = *pin_k & 0xF7;
-  }
+    //*pin_k = *pin_k & 0xF7;
+  //}
 
   // Get tempurature and humidity
-  int chk = DHT.read11(DHT11_PIN);
-  float temperature = DHT.temperature;
-  float humidity = DHT.humidity;
+  //int chk = DHT.read11(DHT11_PIN);
+  //float temperature = DHT.temperature;
+  //float humidity = DHT.humidity;
 
 
   // Water sensor ON
-  WRITE_HIGH_PB(7);
-  delay(10);
+  //WRITE_HIGH_PB(7);
+  //delay(10);
   //Read water level
-  waterLevel = adc_read(12);
+  //waterLevel = adc_read(12);
   // Water sensor OFF
-  WRITE_LOW_PB(7);
+  //WRITE_LOW_PB(7);
 
   switch (state)
   {
     case 0: // Time of state change and motor position change to serial port
+              U0putchar('A');
               timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
             // Fan OFF
-              stopFan();
+              //stopFan();
             // Yellow LED ON
               // drive PD0 HIGH
               WRITE_HIGH_PD(0);
             // Stop stepper motor
-              stopStepperMotor();
+              //stopStepperMotor();
             // LCD
-              LCDDisabled();
+              //LCDDisabled();
             // Monitor start button
-              if (startButton) {
-                state = 1;
-              }
+              //if (startButton) {
+                //state = 1;
+              //}
             break;
     case 1: // Time of state change and motor position change to serial port
-              timeToSerial();
-              stateToSerial(state);
-              U0putchar('\n');
+              //timeToSerial();
+              //stateToSerial(state);
+              //U0putchar('\n');
             // Fan OFF
-              stopFan();
+              //stopFan();
             // Green LED ON
               // drive PD1 HIGH
               WRITE_HIGH_PD(1);
             // LCDTempAndHumidity() ON
-              LCDTempAndHumidity(temperature, humidity);
+              //LCDTempAndHumidity(temperature, humidity);
             // Monitor water level
             // Respond to change in vent control
-              if (ventButton) {
-                startStepperMotor();
-              } else {
-                stopStepperMotor();
-              }
+              //if (ventButton) {
+              //  startStepperMotor();
+              //} else {
+                //stopStepperMotor();
+              //}
             // if (temp>threshhold) {state=2}
-              if (temperature>tempThreshold) {
-                state=2;
-              }
+              //if (temperature>tempThreshold) {
+                //state=2;
+              //}
             // if (waterLevel<=threshold) {state=3}
-              if (waterLevel <= waterThreshold) {
-                state = 3;
-              }
+              //if (waterLevel <= waterThreshold) {
+                //state = 3;
+              //}
             // if (stopButtonPressed) {state=0}
-              if (!startButton) {
-                stopFan();
-                state = 0;
-              }
+              //if (!startButton) {
+                //stopFan();
+                //state = 0;
+              //}
             break;
     case 2: // Time of state change and motor position change to serial port
-              timeToSerial();
-              stateToSerial(state);
-              U0putchar('\n');
+              //timeToSerial();
+              //stateToSerial(state);
+              //U0putchar('\n');
             // LCDTempAndHumidity() ON
-              LCDTempAndHumidity(temperature, humidity);
+              //LCDTempAndHumidity(temperature, humidity);
             // Start fan motor
-              startFan();
+              //startFan();
             // Blue LED ON
               // drive PD2 HIGH
               WRITE_HIGH_PD(2);
@@ -292,34 +297,34 @@ void loop()
               WRITE_LOW_PD(3);
             // Monitor water level
             // Respond to change in vent control
-              if (ventButton) {
-                startStepperMotor();
-              } else {
-                stopStepperMotor();
-              }
+              //if (ventButton) {
+                //startStepperMotor();
+              //} else {
+                //stopStepperMotor();
+              //}
             // if (temp<=threshhold) {state=1}
-              if (temperature<=tempThreshold) {
-                state=1;
-              }
+              //if (temperature<=tempThreshold) {
+                //state=1;
+              //}
             // if (waterLevel<threshold) {state=3}
-              if (waterLevel < waterThreshold) {
-                state = 3;
-              }
+              //if (waterLevel < waterThreshold) {
+                //state = 3;
+              //}
             // if (stopButtonPressed) {state=0}
-              if (!startButton) {
-                stopFan();
-                state = 0;
-              }
+              //if (!startButton) {
+                //stopFan();
+                //state = 0;
+              //}
             break;
     case 3: // Time of state change and motor position change to serial port
-              timeToSerial();
-              stateToSerial(state);
-              U0putchar('\n');
+              //timeToSerial();
+              //stateToSerial(state);
+              //U0putchar('\n');
             // Motor OFF
-              stopStepperMotor();
-              stopFan();
+              //stopStepperMotor();
+              //stopFan();
             // Write error to LCD
-              LCDError();
+              //LCDError();
             // Red LED ON (All other leds off)
               // drive PD3 HIGH
               WRITE_HIGH_PD(3);
@@ -328,26 +333,26 @@ void loop()
               WRITE_LOW_PD(1);
               WRITE_LOW_PD(2);
             // Respond to change in vent control
-              if (ventButton) {
-                startStepperMotor();
-              } else {
-                stopStepperMotor();
-              }
+              //if (ventButton) {
+                //startStepperMotor();
+              //} else {
+                //stopStepperMotor();
+              //}
             // if(resetPressed) {state=1}
             // if (stopButtonPressed) {state=0}
-              if (!startButton) {
-                stopFan();
-                state = 0;
-              }
+              //if (!startButton) {
+                //stopFan();
+                //state = 0;
+              //}
             break;
   }
   // LED Delay
-  delay(1);
+  delay(1000);
 }
 
 void LCDTempAndHumidity(float temp, float humidity) {
-  lcd.clear();
-  lcd.setCursor(0, 0);
+  //lcd.clear();
+  //lcd.setCursor(0, 0);
   /*
   lcd.write('A');
   lcd.setCursor(0, 1);
@@ -372,18 +377,18 @@ void LCDTempAndHumidity(float temp, float humidity) {
   lcd.write(29);
   */
 
-  lcd.print("Air Temp (C): ");
-  lcd.println((float)temp, 2);
+  //lcd.print("Air Temp (C): ");
+  //lcd.println((float)temp, 2);
 
-  lcd.setCursor(0, 1);
-  lcd.print("Humidity (%): ");
-  lcd.println((float)humidity, 2);
+  //lcd.setCursor(0, 1);
+  //lcd.print("Humidity (%): ");
+  //lcd.println((float)humidity, 2);
   delay(60000);
 }
 
 void LCDError() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
+  //lcd.clear();
+  //lcd.setCursor(0, 0);
   /*
   lcd.write('A');
   lcd.setCursor(0, 1);
@@ -408,13 +413,13 @@ void LCDError() {
   lcd.write(29);
   */
 
-  lcd.print("ERROR!");
+  //lcd.print("ERROR!");
 
 }
 
 void LCDDisabled() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
+  //lcd.clear();
+  //lcd.setCursor(0, 0);
   /*
   lcd.write('A');
   lcd.setCursor(0, 1);
@@ -439,7 +444,7 @@ void LCDDisabled() {
   lcd.write(29);
   */
 
-  lcd.print("DISABLED");
+  //lcd.print("DISABLED");
 
 }
 
@@ -479,12 +484,14 @@ void stateToSerial(int state){
   U0putchar('B');
   U0putchar('L');
   U0putchar('E');
-  U0putchar('D ');
+  U0putchar('D');
+  U0putchar(' ');
  } else if (state==1) {
   U0putchar('I');
   U0putchar('D');
   U0putchar('L');
-  U0putchar('E ');
+  U0putchar('E');
+  U0putchar(' ');
  } else if (state==2) {
   U0putchar('R');
   U0putchar('U');
@@ -492,21 +499,23 @@ void stateToSerial(int state){
   U0putchar('N');
   U0putchar('I');
   U0putchar('N');
-  U0putchar('G ');
+  U0putchar('G');
+  U0putchar(' ');
  }  else if (state==3) {
   U0putchar('E');
   U0putchar('R');
   U0putchar('R');
   U0putchar('O');
-  U0putchar('R ');
+  U0putchar('R');
+  U0putchar(' ');
  }
 }
 
 void startStepperMotor() {
   // Rotate CW slowly at 5 RPM
-  myStepper.setSpeed(5);
-  myStepper.step(stepsPerRevolution);
-  delay(1000);
+  //myStepper.setSpeed(5);
+  //myStepper.step(stepsPerRevolution);
+  //delay(1000);
 
   // Print vent position change to serial port
   U0putchar('S');
@@ -515,10 +524,12 @@ void startStepperMotor() {
   U0putchar('P');
   U0putchar('P');
   U0putchar('E');
-  U0putchar('R ');
+  U0putchar('R');
+  U0putchar(' ');
   U0putchar('P');
   U0putchar('O');
-  U0putchar('S ');
+  U0putchar('S');
+  U0putchar(' ');
   U0putchar('C');
   U0putchar('H');
   U0putchar('A');
@@ -530,8 +541,8 @@ void startStepperMotor() {
 
 void stopStepperMotor() {
   // Rotate CW at 0 RPM
-  myStepper.setSpeed(0);
-  myStepper.step(stepsPerRevolution);
+  //myStepper.setSpeed(0);
+  //myStepper.step(stepsPerRevolution);
   delay(1000);
 }
 
