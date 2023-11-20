@@ -2,7 +2,9 @@
 Breadboard Setup
 Start Button = PK2 (Analog In A10)
   1K resistor for button
-Vent (Stepper Motor) Button = PK3 (Analog In A11)
+Stop Button = PK3 (Analog In A11)
+  1K resistor for button
+Vent (Stepper Motor) Button = PK4 (Analog In A12)
 Yellow LED = PD0 (Communication 21)
 Green LED = PD1 (Communication 20)
 Blue LED = PD2 (Communication 19)
@@ -11,11 +13,17 @@ Red LED = PD3 (Communication 18)
   Long side is positive on LEDs
   Make sure resistors aren't touching
 LCD RS (PWM 11) = 11
-LCD EN (PWM 12) = 12
+LCD EN (E) (PWM 12) = 12
 LCD D4 (PWM 2) = 2
 LCD D5 (PWM 3) = 3
 LCD D6 (PWM 4) = 4
 LCD D7 (PWM 5) = 5
+  A into (light side) 330 resistor (dark side) into positive
+  VSS into negative
+  VDD into positive
+  RW into negative
+  K into negative
+  NEED Pontentiometer (Side by itself is to VO, right side to negative and left to positive) 
 Stepper Motor IN1 = 7
 Stepper Motor IN2 = 8
 Stepper Motor IN3 = 9
@@ -36,10 +44,13 @@ LEDs*
 Stepper Motor
 Fan
 Start Button*
+Stop Button*
 Vent Button
 Serial Port* (prints state)
 Clock
-LCD
+LCD*
+Water Sensor
+Temp and Humidity
 */
 
 /*
@@ -68,7 +79,7 @@ LCD
 
 #define DHT11_PIN 6
 
-int state = 0;
+int state = 3;
 //int state;
 // 0 = DISABLED
 // 1 = IDLE
@@ -121,8 +132,8 @@ int dir2 = 6;
 int mSpeed = 90;
 
 // Setup LCD pins and create LCD instance
-//const int RS = 11, EN = 12, D4 = 2, D5 = 3, D6 = 4, D7 = 5;
-//LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
+const int RS = 11, EN = 12, D4 = 2, D5 = 3, D6 = 4, D7 = 5;
+LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 
 // Time/Clock
 RTC_DS3231 rtc;
@@ -136,6 +147,7 @@ int waterLevel;
 
 // Start/Stop button
 bool startButton = false;
+bool stopButton = false;
 
 void setup()
 {
@@ -152,7 +164,7 @@ void setup()
   //rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
 
   // Wake up LCD
-  //lcd.begin(16, 2);
+  lcd.begin(16, 2);
   
   //set PD0 to OUTPUT
   *ddr_d |= 0x01;
@@ -173,9 +185,11 @@ void setup()
 
   //set PK2 to INPUT
   *ddr_k &= 0xFB;
-
   //set PK3 to INPUT
-  //*ddr_k &= 0xF7;
+  *ddr_k &= 0xF7;
+
+  //set PK4 to INPUT
+  //*ddr_k &= 0xEF;
 
   //set PB7 to OUTPUT
   //*ddr_b |= 0x80;
@@ -186,37 +200,54 @@ void setup()
   // enable the pullup resistor on PK2
   *port_k |= 0x04;
   // enable the pullup resistor on PK3
-  //*port_k |= 0x08;
+  *port_k |= 0x08;
+
+  // enable the pullup resistor on PK4
+  //*port_k |= 0x10;
 }
 
 
 
 void loop()
 {
-  // If clicked will start and if clicked again will stop
+  //startButton = false;
+  //stopButton = false;
+  // If clicked will start
   if(*pin_k & 0x04) {
     delay(100);
-    startButton = !startButton;
+    startButton = true;
+  } else {
+    startButton = false;
+  }
+
+  // If clicked will stop
+  if(*pin_k & 0x08) {
+    delay(100);
+    stopButton = true;
+  } else {
+    stopButton = false;
   }
 
   // If pressed vent moves slowly then stops when let go
   bool ventButton;
-  //if(*pin_k & 0x08) {
+  //if(*pin_k & 0x10) {
     //ventButton = true;
     // To keep true without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
     // PD3
-    //*pin_k = *pin_k & 0x08;
+    //*pin_k = *pin_k & 0x10;
   //} else {
     //ventButton = false;
     // To keep false without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
     // PD3
-    //*pin_k = *pin_k & 0xF7;
+    //*pin_k = *pin_k & 0xEF;
   //}
 
   // Get tempurature and humidity
   //int chk = DHT.read11(DHT11_PIN);
   //float temperature = DHT.temperature;
   //float humidity = DHT.humidity;
+  float temperature = 22.0;
+  float humidity = 78.0;
 
 
   // Water sensor ON
@@ -233,8 +264,10 @@ void loop()
               //timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
+              
             // Fan OFF
               //stopFan();
+              
             // Yellow LED ON
               // drive PD0 HIGH
               WRITE_HIGH_PD(0);
@@ -242,10 +275,13 @@ void loop()
               WRITE_LOW_PD(1);
               WRITE_LOW_PD(2);
               WRITE_LOW_PD(3);
+              
             // Stop stepper motor
               //stopStepperMotor();
+              
             // LCD
-              //LCDDisabled();
+              LCDDisabled();
+              
             // Monitor start button
               if (startButton) {
                 state = 1;
@@ -255,8 +291,10 @@ void loop()
               //timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
+              
             // Fan OFF
               //stopFan();
+              
             // Green LED ON
               // drive PD1 HIGH
               WRITE_HIGH_PD(1);
@@ -264,25 +302,31 @@ void loop()
               WRITE_LOW_PD(0);
               WRITE_LOW_PD(2);
               WRITE_LOW_PD(3);
+              
             // LCDTempAndHumidity() ON
-              //LCDTempAndHumidity(temperature, humidity);
+              LCDTempAndHumidity(temperature, humidity);
+              
             // Monitor water level
+            
             // Respond to change in vent control
               //if (ventButton) {
               //  startStepperMotor();
               //} else {
                 //stopStepperMotor();
               //}
+              
             // if (temp>threshhold) {state=2}
               //if (temperature>tempThreshold) {
                 //state=2;
               //}
+              
             // if (waterLevel<=threshold) {state=3}
               //if (waterLevel <= waterThreshold) {
                 //state = 3;
               //}
+              
             // if (stopButtonPressed) {state=0}
-              if (!startButton) {
+              if (stopButton) {
                 //stopFan();
                 state = 0;
               }
@@ -291,34 +335,42 @@ void loop()
               //timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
-            // LCDTempAndHumidity() ON
-              //LCDTempAndHumidity(temperature, humidity);
-            // Start fan motor
-              //startFan();
-            // Blue LED ON
+
+             // Blue LED ON
               // drive PD2 HIGH
               WRITE_HIGH_PD(2);
               // turn off other LEDs
               WRITE_LOW_PD(0);
               WRITE_LOW_PD(1);
               WRITE_LOW_PD(3);
+              
+            // LCDTempAndHumidity() ON
+              LCDTempAndHumidity(temperature, humidity);
+              
+            // Start fan motor
+              //startFan();
+           
             // Monitor water level
+            
             // Respond to change in vent control
               //if (ventButton) {
                 //startStepperMotor();
               //} else {
                 //stopStepperMotor();
               //}
+              
             // if (temp<=threshhold) {state=1}
               //if (temperature<=tempThreshold) {
                 //state=1;
               //}
+              
             // if (waterLevel<threshold) {state=3}
               //if (waterLevel < waterThreshold) {
                 //state = 3;
               //}
+              
             // if (stopButtonPressed) {state=0}
-              if (!startButton) {
+              if (stopButton) {
                 //stopFan();
                 state = 0;
               }
@@ -327,11 +379,14 @@ void loop()
               //timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
+              
             // Motor OFF
               //stopStepperMotor();
               //stopFan();
+              
             // Write error to LCD
-              //LCDError();
+              LCDError();
+              
             // Red LED ON (All other leds off)
               // drive PD3 HIGH
               WRITE_HIGH_PD(3);
@@ -339,15 +394,21 @@ void loop()
               WRITE_LOW_PD(0);
               WRITE_LOW_PD(1);
               WRITE_LOW_PD(2);
+              
             // Respond to change in vent control
               //if (ventButton) {
                 //startStepperMotor();
               //} else {
                 //stopStepperMotor();
               //}
+              
             // if(resetPressed) {state=1}
+              if (startButton) {
+                state = 1;
+              }
+            
             // if (stopButtonPressed) {state=0}
-              if (!startButton) {
+              if (stopButton) {
                 //stopFan();
                 state = 0;
               }
@@ -358,8 +419,8 @@ void loop()
 }
 
 void LCDTempAndHumidity(float temp, float humidity) {
-  //lcd.clear();
-  //lcd.setCursor(0, 0);
+  lcd.clear();
+  lcd.setCursor(0, 0);
   /*
   lcd.write('A');
   lcd.setCursor(0, 1);
@@ -384,18 +445,19 @@ void LCDTempAndHumidity(float temp, float humidity) {
   lcd.write(29);
   */
 
-  //lcd.print("Air Temp (C): ");
-  //lcd.println((float)temp, 2);
+  lcd.print("Air Temp (C): ");
+  lcd.println((float)temp, 2);
 
-  //lcd.setCursor(0, 1);
-  //lcd.print("Humidity (%): ");
-  //lcd.println((float)humidity, 2);
-  delay(60000);
+  lcd.setCursor(0, 1);
+  lcd.print("Humidity (%): ");
+  lcd.println((float)humidity, 2);
+  // Delay for 1 min
+  //delay(60000);
 }
 
 void LCDError() {
-  //lcd.clear();
-  //lcd.setCursor(0, 0);
+  lcd.clear();
+  lcd.setCursor(0, 0);
   /*
   lcd.write('A');
   lcd.setCursor(0, 1);
@@ -420,13 +482,13 @@ void LCDError() {
   lcd.write(29);
   */
 
-  //lcd.print("ERROR!");
+  lcd.print("ERROR!");
 
 }
 
 void LCDDisabled() {
-  //lcd.clear();
-  //lcd.setCursor(0, 0);
+  lcd.clear();
+  lcd.setCursor(0, 0);
   /*
   lcd.write('A');
   lcd.setCursor(0, 1);
@@ -451,7 +513,7 @@ void LCDDisabled() {
   lcd.write(29);
   */
 
-  //lcd.print("DISABLED");
+  lcd.print("DISABLED");
 
 }
 
