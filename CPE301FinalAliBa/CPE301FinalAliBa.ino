@@ -1,14 +1,15 @@
 /*
 Breadboard Setup
 Start Button = PK2 (Analog In A10)
+  1K resistor for button
 Vent (Stepper Motor) Button = PK3 (Analog In A11)
-330 Resistor for LEDs
-Long side is positive on LEDs
-Make sure resistors aren't touching
 Yellow LED = PD0 (Communication 21)
 Green LED = PD1 (Communication 20)
 Blue LED = PD2 (Communication 19)
 Red LED = PD3 (Communication 18)
+  330 Resistor for LEDs
+  Long side is positive on LEDs
+  Make sure resistors aren't touching
 LCD RS (PWM 11) = 11
 LCD EN (PWM 12) = 12
 LCD D4 (PWM 2) = 2
@@ -34,8 +35,9 @@ To Test:
 LEDs*
 Stepper Motor
 Fan
-Buttons
-Serial Port
+Start Button*
+Vent Button
+Serial Port* (prints state)
 Clock
 LCD
 */
@@ -132,6 +134,9 @@ char t[32];
 // Water level from sensor
 int waterLevel;
 
+// Start/Stop button
+bool startButton = false;
+
 void setup()
 {
   //Serial.begin(9600);
@@ -142,9 +147,9 @@ void setup()
   adc_init();
 
   // setup time/clock
-  Wire.begin();
-  rtc.begin();
-  rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
+  //Wire.begin();
+  //rtc.begin();
+  //rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
 
   // Wake up LCD
   //lcd.begin(16, 2);
@@ -167,7 +172,7 @@ void setup()
   //*ddr_d |= 0x40;
 
   //set PK2 to INPUT
-  //*ddr_k &= 0xFB;
+  *ddr_k &= 0xFB;
 
   //set PK3 to INPUT
   //*ddr_k &= 0xF7;
@@ -179,7 +184,7 @@ void setup()
   //WRITE_LOW_PK(4);
   
   // enable the pullup resistor on PK2
-  //*port_k |= 0x04;
+  *port_k |= 0x04;
   // enable the pullup resistor on PK3
   //*port_k |= 0x08;
 }
@@ -188,27 +193,22 @@ void setup()
 
 void loop()
 {
-  bool startButton;
-  //if(*pin_k & 0x04) {
-    //startButton = true;
-    // To keep true without holding button. Test to make sure it works
-    //*pin_k = *pin_k & 0x04;
-  //} else {
-    //startButton = false;
-    // To keep false without holding button. Test to make sure it works
-    //*pin_k = *pin_k & 0xFB;
-  //}
+  // If clicked will start and if clicked again will stop
+  if(*pin_k & 0x04) {
+    delay(100);
+    startButton = !startButton;
+  }
 
   // If pressed vent moves slowly then stops when let go
   bool ventButton;
   //if(*pin_k & 0x08) {
     //ventButton = true;
-    // To keep true without holding button. Test to make sure it works
+    // To keep true without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
     // PD3
     //*pin_k = *pin_k & 0x08;
   //} else {
     //ventButton = false;
-    // To keep false without holding button. Test to make sure it works
+    // To keep false without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
     // PD3
     //*pin_k = *pin_k & 0xF7;
   //}
@@ -230,8 +230,7 @@ void loop()
   switch (state)
   {
     case 0: // Time of state change and motor position change to serial port
-              U0putchar('A');
-              timeToSerial();
+              //timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
             // Fan OFF
@@ -239,24 +238,32 @@ void loop()
             // Yellow LED ON
               // drive PD0 HIGH
               WRITE_HIGH_PD(0);
+              // turn off other LEDs
+              WRITE_LOW_PD(1);
+              WRITE_LOW_PD(2);
+              WRITE_LOW_PD(3);
             // Stop stepper motor
               //stopStepperMotor();
             // LCD
               //LCDDisabled();
             // Monitor start button
-              //if (startButton) {
-                //state = 1;
-              //}
+              if (startButton) {
+                state = 1;
+              }
             break;
     case 1: // Time of state change and motor position change to serial port
               //timeToSerial();
-              //stateToSerial(state);
-              //U0putchar('\n');
+              stateToSerial(state);
+              U0putchar('\n');
             // Fan OFF
               //stopFan();
             // Green LED ON
               // drive PD1 HIGH
               WRITE_HIGH_PD(1);
+              // turn off other LEDs
+              WRITE_LOW_PD(0);
+              WRITE_LOW_PD(2);
+              WRITE_LOW_PD(3);
             // LCDTempAndHumidity() ON
               //LCDTempAndHumidity(temperature, humidity);
             // Monitor water level
@@ -275,15 +282,15 @@ void loop()
                 //state = 3;
               //}
             // if (stopButtonPressed) {state=0}
-              //if (!startButton) {
+              if (!startButton) {
                 //stopFan();
-                //state = 0;
-              //}
+                state = 0;
+              }
             break;
     case 2: // Time of state change and motor position change to serial port
               //timeToSerial();
-              //stateToSerial(state);
-              //U0putchar('\n');
+              stateToSerial(state);
+              U0putchar('\n');
             // LCDTempAndHumidity() ON
               //LCDTempAndHumidity(temperature, humidity);
             // Start fan motor
@@ -311,15 +318,15 @@ void loop()
                 //state = 3;
               //}
             // if (stopButtonPressed) {state=0}
-              //if (!startButton) {
+              if (!startButton) {
                 //stopFan();
-                //state = 0;
-              //}
+                state = 0;
+              }
             break;
     case 3: // Time of state change and motor position change to serial port
               //timeToSerial();
-              //stateToSerial(state);
-              //U0putchar('\n');
+              stateToSerial(state);
+              U0putchar('\n');
             // Motor OFF
               //stopStepperMotor();
               //stopFan();
@@ -340,14 +347,14 @@ void loop()
               //}
             // if(resetPressed) {state=1}
             // if (stopButtonPressed) {state=0}
-              //if (!startButton) {
+              if (!startButton) {
                 //stopFan();
-                //state = 0;
-              //}
+                state = 0;
+              }
             break;
   }
   // LED Delay
-  delay(1000);
+  delay(100);
 }
 
 void LCDTempAndHumidity(float temp, float humidity) {
