@@ -32,11 +32,15 @@ Stepper Motor IN4 = 10
 DC (Fan) Motor Speed Pin: 1 = PD4 (Communication 17)
 DC (Fan) Motor IN1: 2 = PD5 (Communication 16)
 DC (Fan) Motor IN2: 7 = PD6 (Communication 15)
+How to work clock: https://lastminuteengineers.com/ds1307-rtc-arduino-tutorial/
 SDA Clock = A4 (Analog In)
 SCL Clock = A5 (Analog In)
 Temp/Humidity Sensor = 6 (PWM 6)
+  right to left: (signal, positive, negative)
+Water sensor info: https://lastminuteengineers.com/water-level-sensor-arduino-tutorial/
 Water Sensor Signal = PK4: A12 (Analog In)
 Water Sensor Power = 13 (PWM 12) PB7
+  Use female to male wires
 */
 
 /*
@@ -51,7 +55,7 @@ Serial Port* (prints state)
 Clock
 LCD*
 Water Sensor
-Temp and Humidity
+Temp and Humidity*
 */
 
 /*
@@ -62,12 +66,13 @@ Temp and Humidity
 // Download stepper library
 // Download RTCLib
 // Download DS3231
+// Download DHTLib library
 #include <LiquidCrystal.h>
 #include <time.h>
 #include <Stepper.h>
 #include <RTClib.h>
 #include <Wire.h>
-//#include <dht.h>
+#include <dht.h>
 
 #define WRITE_HIGH_PD(pin_num)  *port_d |= (0x01 << pin_num);
 #define WRITE_LOW_PD(pin_num)  *port_d &= ~(0x01 << pin_num);
@@ -87,7 +92,7 @@ int state = 3;
 // 2 = RUNNING
 // 3 = ERROR
 
-float tempThreshold = 0.0;
+float tempThreshold = 40.0;
 int waterThreshold = 1;
 
 // Define Port K Register Pointers
@@ -141,7 +146,7 @@ RTC_DS3231 rtc;
 char t[32];
 
 // Temp and humidity sensor
-//dht DHT;
+dht DHT;
 
 // Water level from sensor
 int waterLevel;
@@ -190,13 +195,13 @@ void setup()
   *ddr_k &= 0xF7;
 
   //set PK4 to INPUT
-  //*ddr_k &= 0xEF;
+  *ddr_k &= 0xEF;
 
   //set PB7 to OUTPUT
-  //*ddr_b |= 0x80;
+  *ddr_b |= 0x80;
 
   // Water sensor OFF
-  //WRITE_LOW_PK(4);
+  WRITE_LOW_PB(7);
   
   // enable the pullup resistor on PK2
   *port_k |= 0x04;
@@ -204,7 +209,7 @@ void setup()
   *port_k |= 0x08;
 
   // enable the pullup resistor on PK4
-  //*port_k |= 0x10;
+  *port_k |= 0x10;
 }
 
 
@@ -244,20 +249,20 @@ void loop()
   //}
 
   // Get tempurature and humidity
-  //int chk = DHT.read11(DHT11_PIN);
-  //float temperature = DHT.temperature;
-  //float humidity = DHT.humidity;
-  float temperature = 22.0;
-  float humidity = 78.0;
+  int chk = DHT.read11(DHT11_PIN);
+  float temperature = DHT.temperature;
+  float humidity = DHT.humidity;
+  //float temperature = 22.0;
+  //float humidity = 78.0;
 
-
+  // Moniter Water Level
   // Water sensor ON
-  //WRITE_HIGH_PB(7);
-  //delay(10);
+  WRITE_HIGH_PB(7);
+  delay(10);
   //Read water level
-  //waterLevel = adc_read(12);
+  waterLevel = adc_read(12);
   // Water sensor OFF
-  //WRITE_LOW_PB(7);
+  WRITE_LOW_PB(7);
 
   switch (state)
   {
@@ -308,6 +313,15 @@ void loop()
               LCDTempAndHumidity(temperature, humidity);
               
             // Monitor water level
+              // Water sensor ON
+              WRITE_HIGH_PB(7);
+              delay(10);
+              //Read water level
+              waterLevel = adc_read(12);
+              // Water sensor OFF
+              WRITE_LOW_PB(7);
+
+              Serial.println(waterLevel); 
             
             // Respond to change in vent control
               //if (ventButton) {
@@ -317,14 +331,14 @@ void loop()
               //}
               
             // if (temp>threshhold) {state=2}
-              //if (temperature>tempThreshold) {
-                //state=2;
-              //}
+              if (temperature>tempThreshold) {
+                state=2;
+              }
               
             // if (waterLevel<=threshold) {state=3}
-              //if (waterLevel <= waterThreshold) {
-                //state = 3;
-              //}
+              if (waterLevel <= waterThreshold) {
+                state = 3;
+              }
               
             // if (stopButtonPressed) {state=0}
               if (stopButton) {
@@ -352,7 +366,14 @@ void loop()
               //startFan();
            
             // Monitor water level
-            
+              // Water sensor ON
+              WRITE_HIGH_PB(7);
+              delay(10);
+              //Read water level
+              waterLevel = adc_read(12);
+              // Water sensor OFF
+              WRITE_LOW_PB(7);
+              
             // Respond to change in vent control
               //if (ventButton) {
                 //startStepperMotor();
@@ -361,14 +382,14 @@ void loop()
               //}
               
             // if (temp<=threshhold) {state=1}
-              //if (temperature<=tempThreshold) {
-                //state=1;
-              //}
+              if (temperature<=tempThreshold) {
+                state=1;
+              }
               
             // if (waterLevel<threshold) {state=3}
-              //if (waterLevel < waterThreshold) {
-                //state = 3;
-              //}
+              if (waterLevel < waterThreshold) {
+                state = 3;
+              }
               
             // if (stopButtonPressed) {state=0}
               if (stopButton) {
