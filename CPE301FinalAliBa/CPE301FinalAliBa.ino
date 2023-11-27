@@ -4,7 +4,7 @@ Start Button = PK2 (Analog In A10)
   1K resistor for button
 Stop Button = PK3 (Analog In A11)
   1K resistor for button
-Vent (Stepper Motor) Button = PK4 (Analog In A12)
+Vent (Stepper Motor) Button = PK5 (Analog In A13)
 Yellow LED = PD0 (Communication 21)
 Green LED = PD1 (Communication 20)
 Blue LED = PD2 (Communication 19)
@@ -39,7 +39,8 @@ Temp/Humidity Sensor = 6 (PWM 6)
   right to left: (signal, positive, negative)
 Water sensor info: https://lastminuteengineers.com/water-level-sensor-arduino-tutorial/
 Water Sensor Signal = PK4: A12 (Analog In)
-Water Sensor Power = 13 (PWM 12) PB7
+Water Sensor Power = 13 (PWM 13) PB7
+  Into 13 NOT 7
   Use female to male wires
 */
 
@@ -47,14 +48,14 @@ Water Sensor Power = 13 (PWM 12) PB7
 To Test:
 LEDs*
 Stepper Motor
+Vent Button
 Fan
 Start Button*
 Stop Button*
-Vent Button
 Serial Port* (prints state)
 Clock
 LCD*
-Water Sensor
+Water Sensor*
 Temp and Humidity*
 */
 
@@ -85,7 +86,7 @@ Temp and Humidity*
 
 #define DHT11_PIN 6
 
-int state = 3;
+int state = 0;
 //int state;
 // 0 = DISABLED
 // 1 = IDLE
@@ -128,7 +129,7 @@ const int stepsPerRevolution = 2038;
 
 // Creates an instance of stepper class
 // Pins entered in sequence IN1-IN3-IN2-IN4 for proper step sequence
-//Stepper myStepper = Stepper(stepsPerRevolution, 7, 9, 8, 10);
+Stepper myStepper = Stepper(stepsPerRevolution, 7, 9, 8, 10);
 
 //DC (Fan) Motor Pins
 int speedPin = 4;
@@ -193,6 +194,8 @@ void setup()
   *ddr_k &= 0xFB;
   //set PK3 to INPUT
   *ddr_k &= 0xF7;
+  //set PK5 to INPUT
+  *ddr_k &= 0xDF;
 
   //set PK4 to INPUT
   *ddr_k &= 0xEF;
@@ -207,6 +210,9 @@ void setup()
   *port_k |= 0x04;
   // enable the pullup resistor on PK3
   *port_k |= 0x08;
+
+  // enable the pullup resistor on PK5
+  *port_k |= 0x20;
 
   // enable the pullup resistor on PK4
   *port_k |= 0x10;
@@ -236,17 +242,17 @@ void loop()
 
   // If pressed vent moves slowly then stops when let go
   bool ventButton;
-  //if(*pin_k & 0x10) {
-    //ventButton = true;
+  if(*pin_k & 0x20) {
+    ventButton = true;
     // To keep true without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
     // PD3
-    //*pin_k = *pin_k & 0x10;
-  //} else {
-    //ventButton = false;
+    //*pin_k = *pin_k & 0x20;
+  } else {
+    ventButton = false;
     // To keep false without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
     // PD3
-    //*pin_k = *pin_k & 0xEF;
-  //}
+    //*pin_k = *pin_k & 0xDF;
+  }
 
   // Get tempurature and humidity
   int chk = DHT.read11(DHT11_PIN);
@@ -256,13 +262,7 @@ void loop()
   //float humidity = 78.0;
 
   // Moniter Water Level
-  // Water sensor ON
-  WRITE_HIGH_PB(7);
-  delay(10);
-  //Read water level
-  waterLevel = adc_read(12);
-  // Water sensor OFF
-  WRITE_LOW_PB(7);
+  waterLevel = readWaterSensor();
 
   switch (state)
   {
@@ -283,7 +283,7 @@ void loop()
               WRITE_LOW_PD(3);
               
             // Stop stepper motor
-              //stopStepperMotor();
+              stopStepperMotor();
               
             // LCD
               LCDDisabled();
@@ -313,22 +313,17 @@ void loop()
               LCDTempAndHumidity(temperature, humidity);
               
             // Monitor water level
-              // Water sensor ON
-              WRITE_HIGH_PB(7);
-              delay(10);
-              //Read water level
-              waterLevel = adc_read(12);
-              // Water sensor OFF
-              WRITE_LOW_PB(7);
+            waterLevel = readWaterSensor();
 
-              Serial.println(waterLevel); 
+            // Temperary to check if water sensor works
+            Serial.println(waterLevel); 
             
             // Respond to change in vent control
-              //if (ventButton) {
-              //  startStepperMotor();
-              //} else {
-                //stopStepperMotor();
-              //}
+              if (ventButton) {
+                startStepperMotor();
+              } else {
+                stopStepperMotor();
+              }
               
             // if (temp>threshhold) {state=2}
               if (temperature>tempThreshold) {
@@ -366,20 +361,14 @@ void loop()
               //startFan();
            
             // Monitor water level
-              // Water sensor ON
-              WRITE_HIGH_PB(7);
-              delay(10);
-              //Read water level
-              waterLevel = adc_read(12);
-              // Water sensor OFF
-              WRITE_LOW_PB(7);
+            waterLevel = readWaterSensor();
               
             // Respond to change in vent control
-              //if (ventButton) {
-                //startStepperMotor();
-              //} else {
-                //stopStepperMotor();
-              //}
+              if (ventButton) {
+                startStepperMotor();
+              } else {
+                stopStepperMotor();
+              }
               
             // if (temp<=threshhold) {state=1}
               if (temperature<=tempThreshold) {
@@ -418,11 +407,11 @@ void loop()
               WRITE_LOW_PD(2);
               
             // Respond to change in vent control
-              //if (ventButton) {
-                //startStepperMotor();
-              //} else {
-                //stopStepperMotor();
-              //}
+              if (ventButton) {
+                startStepperMotor();
+              } else {
+                stopStepperMotor();
+              }
               
             // if(resetPressed) {state=1}
               if (startButton) {
@@ -604,9 +593,9 @@ void stateToSerial(int state){
 
 void startStepperMotor() {
   // Rotate CW slowly at 5 RPM
-  //myStepper.setSpeed(5);
-  //myStepper.step(stepsPerRevolution);
-  //delay(1000);
+  myStepper.setSpeed(5);
+  myStepper.step(stepsPerRevolution);
+  delay(10);
 
   // Print vent position change to serial port
   U0putchar('S');
@@ -630,11 +619,23 @@ void startStepperMotor() {
   U0putchar('D');
 }
 
+int readWaterSensor() {
+  int waterLevel;
+  // Water sensor ON
+  WRITE_HIGH_PB(7);
+  delay(10);
+  //Read water level
+  waterLevel = adc_read(12);
+  // Water sensor OFF
+  WRITE_LOW_PB(7);
+  return waterLevel;
+}
+
 void stopStepperMotor() {
   // Rotate CW at 0 RPM
-  //myStepper.setSpeed(0);
-  //myStepper.step(stepsPerRevolution);
-  delay(1000);
+  myStepper.setSpeed(0);
+  myStepper.step(stepsPerRevolution);
+  delay(10);
 }
 
 
