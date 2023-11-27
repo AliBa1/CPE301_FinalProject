@@ -1,5 +1,6 @@
 /*
 Breadboard Setup
+Power Supply: https://www.youtube.com/watch?v=1er6XQ-BMp4
 Start Button = PK2 (Analog In A10)
   1K resistor for button
 Stop Button = PK3 (Analog In A11)
@@ -47,6 +48,7 @@ Water Sensor Power = 13 (PWM 13) PB7
 /*
 To Test:
 LEDs*
+Stepper start and stop don't work rn
 Stepper Motor
 Vent Button
 Fan
@@ -283,7 +285,7 @@ void loop()
               WRITE_LOW_PD(3);
               
             // Stop stepper motor
-              stopStepperMotor();
+              //stopStepperMotor();
               
             // LCD
               LCDDisabled();
@@ -322,7 +324,7 @@ void loop()
               if (ventButton) {
                 startStepperMotor();
               } else {
-                stopStepperMotor();
+                //stopStepperMotor();
               }
               
             // if (temp>threshhold) {state=2}
@@ -595,7 +597,7 @@ void startStepperMotor() {
   // Rotate CW slowly at 5 RPM
   myStepper.setSpeed(5);
   myStepper.step(stepsPerRevolution);
-  delay(10);
+  delay(1000);
 
   // Print vent position change to serial port
   U0putchar('S');
@@ -619,6 +621,13 @@ void startStepperMotor() {
   U0putchar('D');
 }
 
+void stopStepperMotor() {
+  // Rotate CW at 0 RPM
+  myStepper.setSpeed(0);
+  myStepper.step(stepsPerRevolution);
+  delay(1000);
+}
+
 int readWaterSensor() {
   int waterLevel;
   // Water sensor ON
@@ -629,13 +638,6 @@ int readWaterSensor() {
   // Water sensor OFF
   WRITE_LOW_PB(7);
   return waterLevel;
-}
-
-void stopStepperMotor() {
-  // Rotate CW at 0 RPM
-  myStepper.setSpeed(0);
-  myStepper.step(stepsPerRevolution);
-  delay(10);
 }
 
 
