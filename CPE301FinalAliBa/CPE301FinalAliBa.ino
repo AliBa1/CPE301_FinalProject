@@ -172,7 +172,6 @@ bool ranOnce = false;
 
 void setup()
 {
-  //Serial.begin(9600);
   // setup the UART
   U0init(9600);
   
@@ -251,8 +250,7 @@ void loop()
     stopButton = false;
   }
 
-  // If pressed vent moves slowly then stops when let go
-  // bool ventButton;
+  // If pressed vent moves 45 degrees
   if(*pin_k & 0x80) {
     ventButton = true;
     // To keep true without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
@@ -451,7 +449,6 @@ void loop()
 }
 
 void turnOnLED(int state) {
-  
   // turn off ALL LEDs
   WRITE_LOW_PK(0);
   WRITE_LOW_PK(1);
