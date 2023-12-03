@@ -100,8 +100,8 @@ int state = 0;
 // 2 = RUNNING
 // 3 = ERROR
 
-float tempThreshold = 20.0;
-int waterThreshold = 1;
+float tempThreshold = 15.0;
+int waterThreshold = 220;
 
 // Define Port K Register Pointers
 volatile unsigned char* port_k = (unsigned char*) 0x108; 
