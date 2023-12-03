@@ -58,7 +58,6 @@ LEDs*
 Stepper Motor*
 Vent Button*
 Fan*
-Fan doesn't work when stepper motor position changes
 Start Button*
 Stop Button*
 Serial Port*
