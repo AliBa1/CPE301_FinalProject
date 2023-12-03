@@ -1,11 +1,5 @@
 /*
-Breadboard Setup
-Power Supply: https://www.youtube.com/watch?v=1er6XQ-BMp4
-Start Button = PK2 (Analog In A10)
-  1K resistor for button
-Stop Button = PK3 (Analog In A11)
-  1K resistor for button
-Vent (Stepper Motor) Button = PK5 (Analog In A13)
+Breadboard Setup (in order)
 Yellow LED = PD0 (Communication 21)
 Green LED = PD1 (Communication 20)
 Blue LED = PD2 (Communication 19)
@@ -14,6 +8,12 @@ Red LED = PD3 (Communication 18)
   Long side is positive on LEDs
   Positive into resistor
   Make sure resistors aren't touching
+Start Button = PK2 (Analog In A10)
+  1K resistor for button into negative side
+  Positive into other side
+Stop Button = PK3 (Analog In A11)
+  1K resistor for button into negative side
+  Positive into other side
 LCD RS (PWM 11) = 11
 LCD EN (E) (PWM 12) = 12
 LCD D4 (PWM 2) = 2
@@ -25,7 +25,21 @@ LCD D7 (PWM 5) = 5
   VDD into positive
   RW into negative
   K into negative
-  NEED Pontentiometer (Side w/ 1 by itself is to VO, right side to negative and left to positive) 
+  NEED Pontentiometer (Side w/ 1 by itself is to VO, right side to negative and left to positive)
+Power Supply: https://www.youtube.com/watch?v=1er6XQ-BMp4
+  Press white button to power on/off
+Temp/Humidity Sensor = 6 (PWM 6)
+  right to left: (signal, positive, negative)
+  keep touching it to make work
+Water sensor info: https://lastminuteengineers.com/water-level-sensor-arduino-tutorial/
+Water Sensor Signal = PK4: A12 (Analog In)
+Water Sensor Power = PB7: 13 (PWM 13) 
+  Into 13 NOT 7
+  Use female to male wires
+How to work clock: https://lastminuteengineers.com/ds1307-rtc-arduino-tutorial/
+SDA Clock = A4 (Analog In)
+SCL Clock = A5 (Analog In)
+Vent (Stepper Motor) Button = PK5 (Analog In A13)
 Stepper Motor IN1 = 7
 Stepper Motor IN2 = 8
 Stepper Motor IN3 = 9
@@ -33,16 +47,60 @@ Stepper Motor IN4 = 10
 DC (Fan) Motor Speed Pin: 1 = PD4 (Communication 17)
 DC (Fan) Motor IN1: 2 = PD5 (Communication 16)
 DC (Fan) Motor IN2: 7 = PD6 (Communication 15)
-How to work clock: https://lastminuteengineers.com/ds1307-rtc-arduino-tutorial/
-SDA Clock = A4 (Analog In)
-SCL Clock = A5 (Analog In)
+*/
+
+/*
+Breadboard Setup V2 (in order)
+Pinout: https://www.electronicshub.org/wp-content/uploads/2021/01/Arduino-Mega-Pinout.jpg
+Yellow LED = PK0 (Analog In A8)
+Green LED = PK1 (Analog In A9)
+Blue LED = PK2 (Analog In A10)
+Red LED = PK3 (Analog In A11)
+  330 Resistor for LEDs
+  Long side is positive on LEDs
+  Positive into resistor
+  Make sure resistors aren't touching
+Start Button = PK4 (Analog In A12)
+  1K resistor for button into negative side
+  Positive into other side
+Stop Button = PK5 (Analog In A13)
+  1K resistor for button into negative side
+  Positive into other side
+LCD RS (PWM 11) = 11
+LCD EN (E) (PWM 12) = 12
+LCD D4 (PWM 2) = 2
+LCD D5 (PWM 3) = 3
+LCD D6 (PWM 4) = 4
+LCD D7 (PWM 5) = 5
+  A into (light side) 330 resistor (dark side) into positive
+  VSS into negative
+  VDD into positive
+  RW into negative
+  K into negative
+  NEED Pontentiometer (Side w/ 1 by itself is to VO, right side to negative and left to positive)
+Power Supply: https://www.youtube.com/watch?v=1er6XQ-BMp4
+  Press WHITE button to power on/off
 Temp/Humidity Sensor = 6 (PWM 6)
   right to left: (signal, positive, negative)
+  keep touching it to make work
 Water sensor info: https://lastminuteengineers.com/water-level-sensor-arduino-tutorial/
-Water Sensor Signal = PK4: A12 (Analog In)
-Water Sensor Power = 13 (PWM 13) PB7
+Water Sensor Signal = PK6: A14 (Analog In)
+Water Sensor Power = PB7: 13 (PWM 13) 
   Into 13 NOT 7
   Use female to male wires
+How to work clock: https://lastminuteengineers.com/ds1307-rtc-arduino-tutorial/
+Clock code: https://circuitdigest.com/microcontroller-projects/interfacing-ds3231-rtc-with-arduino-and-diy-digital-clock
+SDA Clock = 20 (Communication 20)
+SCL Clock = 21 (Communication 21)
+Vent (Stepper Motor) Button = PK7 (Analog In A15)
+Stepper Motor IN1 = 7
+Stepper Motor IN2 = 8
+Stepper Motor IN3 = 9
+Stepper Motor IN4 = 10
+DC (Fan) Motor Speed Pin: 1 = PD4 (Communication 17)
+DC (Fan) Motor IN1: 2 = PD5 (Communication 16)
+DC (Fan) Motor IN2: 7 = PD6 (Communication 15)
+
 */
 
 /*
@@ -54,8 +112,8 @@ Vent Button
 Fan
 Start Button*
 Stop Button*
-Serial Port* (prints state)
-Clock
+Serial Port*
+Clock*
 LCD*
 Water Sensor*
 Temp and Humidity*
@@ -70,18 +128,23 @@ Temp and Humidity*
 // Download RTCLib
 // Download DS3231
 // Download DHTLib library
+// Download uRTCLib by Naguissa
 #include <LiquidCrystal.h>
 #include <time.h>
 #include <Stepper.h>
 #include <RTClib.h>
 #include <Wire.h>
 #include <dht.h>
+// #include <uRTCLib.h>
 
 #define WRITE_HIGH_PD(pin_num)  *port_d |= (0x01 << pin_num);
 #define WRITE_LOW_PD(pin_num)  *port_d &= ~(0x01 << pin_num);
 
 #define WRITE_HIGH_PB(pin_num)  *port_b |= (0x01 << pin_num);
 #define WRITE_LOW_PB(pin_num)  *port_b &= ~(0x01 << pin_num);
+
+#define WRITE_HIGH_PK(pin_num)  *port_k |= (0x01 << pin_num);
+#define WRITE_LOW_PK(pin_num)  *port_k &= ~(0x01 << pin_num);
 
 #define RDA 0x80
 #define TBE 0x20
@@ -146,7 +209,11 @@ LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 
 // Time/Clock
 RTC_DS3231 rtc;
-char t[32];
+char dt[32];
+char t[14];
+
+//uRTCLib rtc(0x68);
+//char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 // Temp and humidity sensor
 dht DHT;
@@ -168,21 +235,24 @@ void setup()
   adc_init();
 
   // setup time/clock
-  //Wire.begin();
-  //rtc.begin();
-  //rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
+  Wire.begin();
+  rtc.begin();
+  rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
+  
+  //URTCLIB_WIRE.begin();
+  //rtc.set(0, 56, 12, 5, 13, 1, 22);
 
   // Wake up LCD
   lcd.begin(16, 2);
   
-  //set PD0 to OUTPUT
-  *ddr_d |= 0x01;
-  //set PD1 to OUTPUT
-  *ddr_d |= 0x02;
-  //set PD2 to OUTPUT
-  *ddr_d |= 0x04;
-  //set PD3 to OUTPUT
-  *ddr_d |= 0x08;
+  //set PK0 to OUTPUT
+  *ddr_k |= 0x01;
+  //set PK1 to OUTPUT
+  *ddr_k |= 0x02;
+  //set PK2 to OUTPUT
+  *ddr_k |= 0x04;
+  //set PK3 to OUTPUT
+  *ddr_k |= 0x08;
   
   
   //set PD4 to OUTPUT
@@ -192,15 +262,14 @@ void setup()
   //set PD6 to OUTPUT
   //*ddr_d |= 0x40;
 
-  //set PK2 to INPUT
-  *ddr_k &= 0xFB;
-  //set PK3 to INPUT
-  *ddr_k &= 0xF7;
-  //set PK5 to INPUT
-  *ddr_k &= 0xDF;
-
   //set PK4 to INPUT
   *ddr_k &= 0xEF;
+  //set PK5 to INPUT
+  *ddr_k &= 0xDF;
+  //set PK6 to INPUT
+  *ddr_k &= 0xBF;
+  //set PK7 to INPUT
+  *ddr_k &= 0x7F;
 
   //set PB7 to OUTPUT
   *ddr_b |= 0x80;
@@ -208,26 +277,24 @@ void setup()
   // Water sensor OFF
   WRITE_LOW_PB(7);
   
-  // enable the pullup resistor on PK2
-  *port_k |= 0x04;
-  // enable the pullup resistor on PK3
-  *port_k |= 0x08;
-
+  // enable the pullup resistor on PK4
+  *port_k |= 0x10;
   // enable the pullup resistor on PK5
   *port_k |= 0x20;
 
-  // enable the pullup resistor on PK4
-  *port_k |= 0x10;
+  // enable the pullup resistor on PK6
+  *port_k |= 0x40;
+
+  // enable the pullup resistor on PK7
+  *port_k |= 0x80;
 }
 
 
 
 void loop()
 {
-  //startButton = false;
-  //stopButton = false;
   // If clicked will start
-  if(*pin_k & 0x04) {
+  if(*pin_k & 0x10) {
     delay(100);
     startButton = true;
   } else {
@@ -235,7 +302,7 @@ void loop()
   }
 
   // If clicked will stop
-  if(*pin_k & 0x08) {
+  if(*pin_k & 0x20) {
     delay(100);
     stopButton = true;
   } else {
@@ -243,25 +310,23 @@ void loop()
   }
 
   // If pressed vent moves slowly then stops when let go
-  bool ventButton;
-  if(*pin_k & 0x20) {
-    ventButton = true;
-    // To keep true without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
-    // PD3
-    //*pin_k = *pin_k & 0x20;
-  } else {
-    ventButton = false;
-    // To keep false without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
-    // PD3
-    //*pin_k = *pin_k & 0xDF;
-  }
+  // bool ventButton;
+  // if(*pin_k & 0x80) {
+  //   ventButton = true;
+  //   // To keep true without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
+  // } else {
+  //   ventButton = false;
+  //   // To keep false without holding button. SHOULDN'T NEED SINCE WE WANT HOLDING BUTTON
+  // }
 
   // Get tempurature and humidity
   int chk = DHT.read11(DHT11_PIN);
   float temperature = DHT.temperature;
   float humidity = DHT.humidity;
-  //float temperature = 22.0;
-  //float humidity = 78.0;
+  // float temperature = 22.0;
+  // float humidity = 78.0;
+
+  // rtc.refresh();
 
   // Moniter Water Level
   waterLevel = readWaterSensor();
@@ -269,7 +334,7 @@ void loop()
   switch (state)
   {
     case 0: // Time of state change and motor position change to serial port
-              //timeToSerial();
+              timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
               
@@ -277,12 +342,7 @@ void loop()
               //stopFan();
               
             // Yellow LED ON
-              // drive PD0 HIGH
-              WRITE_HIGH_PD(0);
-              // turn off other LEDs
-              WRITE_LOW_PD(1);
-              WRITE_LOW_PD(2);
-              WRITE_LOW_PD(3);
+              turnOnLED(state);
               
             // Stop stepper motor
               //stopStepperMotor();
@@ -296,7 +356,7 @@ void loop()
               }
             break;
     case 1: // Time of state change and motor position change to serial port
-              //timeToSerial();
+              timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
               
@@ -304,12 +364,7 @@ void loop()
               //stopFan();
               
             // Green LED ON
-              // drive PD1 HIGH
-              WRITE_HIGH_PD(1);
-              // turn off other LEDs
-              WRITE_LOW_PD(0);
-              WRITE_LOW_PD(2);
-              WRITE_LOW_PD(3);
+              turnOnLED(state);
               
             // LCDTempAndHumidity() ON
               LCDTempAndHumidity(temperature, humidity);
@@ -321,11 +376,11 @@ void loop()
             Serial.println(waterLevel); 
             
             // Respond to change in vent control
-              if (ventButton) {
-                startStepperMotor();
-              } else {
-                //stopStepperMotor();
-              }
+              // if (ventButton) {
+              //   startStepperMotor();
+              // } else {
+              //   stopStepperMotor();
+              // }
               
             // if (temp>threshhold) {state=2}
               if (temperature>tempThreshold) {
@@ -344,17 +399,12 @@ void loop()
               }
             break;
     case 2: // Time of state change and motor position change to serial port
-              //timeToSerial();
+              timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
 
              // Blue LED ON
-              // drive PD2 HIGH
-              WRITE_HIGH_PD(2);
-              // turn off other LEDs
-              WRITE_LOW_PD(0);
-              WRITE_LOW_PD(1);
-              WRITE_LOW_PD(3);
+              turnOnLED(state);
               
             // LCDTempAndHumidity() ON
               LCDTempAndHumidity(temperature, humidity);
@@ -366,11 +416,11 @@ void loop()
             waterLevel = readWaterSensor();
               
             // Respond to change in vent control
-              if (ventButton) {
-                startStepperMotor();
-              } else {
-                stopStepperMotor();
-              }
+              // if (ventButton) {
+              //   startStepperMotor();
+              // } else {
+              //   stopStepperMotor();
+              // }
               
             // if (temp<=threshhold) {state=1}
               if (temperature<=tempThreshold) {
@@ -389,7 +439,7 @@ void loop()
               }
             break;
     case 3: // Time of state change and motor position change to serial port
-              //timeToSerial();
+              timeToSerial();
               stateToSerial(state);
               U0putchar('\n');
               
@@ -401,19 +451,14 @@ void loop()
               LCDError();
               
             // Red LED ON (All other leds off)
-              // drive PD3 HIGH
-              WRITE_HIGH_PD(3);
-              // turn off other LEDs
-              WRITE_LOW_PD(0);
-              WRITE_LOW_PD(1);
-              WRITE_LOW_PD(2);
+              turnOnLED(state);
               
             // Respond to change in vent control
-              if (ventButton) {
-                startStepperMotor();
-              } else {
-                stopStepperMotor();
-              }
+              // if (ventButton) {
+              //   startStepperMotor();
+              // } else {
+              //   stopStepperMotor();
+              // }
               
             // if(resetPressed) {state=1}
               if (startButton) {
@@ -431,32 +476,55 @@ void loop()
   delay(100);
 }
 
+void turnOnLED(int state) {
+  
+  // turn off ALL LEDs
+  WRITE_LOW_PK(0);
+  WRITE_LOW_PK(1);
+  WRITE_LOW_PK(2);
+  WRITE_LOW_PK(3);
+
+  // drive LED HIGH
+  WRITE_HIGH_PK(state);
+  
+//   if (state==0) {
+//   // Yellow LED ON
+//     // drive PK0 HIGH
+//     WRITE_HIGH_PK(0);
+//     // turn off other LEDs
+//     WRITE_LOW_PK(1);
+//     WRITE_LOW_PK(2);
+//     WRITE_LOW_PK(3);
+//  } else if (state==1) {
+//   // Green LED ON
+//     // drive PK1 HIGH
+//     WRITE_HIGH_PK(1);
+//     // turn off other LEDs
+//     WRITE_LOW_PK(0);
+//     WRITE_LOW_PK(2);
+//     WRITE_LOW_PK(3);
+//  } else if (state==2) {
+//   // Blue LED ON
+//     // drive PK2 HIGH
+//     WRITE_HIGH_PK(2);
+//     // turn off other LEDs
+//     WRITE_LOW_PK(0);
+//     WRITE_LOW_PK(1);
+//     WRITE_LOW_PK(3);
+//  }  else if (state==3) {
+//   // Red LED ON
+//     // drive PK3 HIGH
+//     WRITE_HIGH_PK(3);
+//     // turn off other LEDs
+//     WRITE_LOW_PK(0);
+//     WRITE_LOW_PK(1);
+//     WRITE_LOW_PK(2);
+//  }
+}
+
 void LCDTempAndHumidity(float temp, float humidity) {
   lcd.clear();
   lcd.setCursor(0, 0);
-  /*
-  lcd.write('A');
-  lcd.setCursor(0, 1);
-  lcd.write('i');
-  lcd.setCursor(0, 2);
-  lcd.write('r');
-  lcd.setCursor(0, 3);
-  lcd.write(' ');
-  lcd.setCursor(0, 4);
-  lcd.write('T');
-  lcd.setCursor(0, 5);
-  lcd.write('e');
-  lcd.setCursor(0, 6);
-  lcd.write('m');
-  lcd.setCursor(0, 7);
-  lcd.write('p');
-  lcd.setCursor(0, 8);
-  lcd.write(':');
-  lcd.setCursor(0, 9);
-  lcd.write(' ');
-  lcd.setCursor(0, 10);
-  lcd.write(29);
-  */
 
   lcd.print("Air Temp (C): ");
   lcd.println((float)temp, 2);
@@ -471,29 +539,6 @@ void LCDTempAndHumidity(float temp, float humidity) {
 void LCDError() {
   lcd.clear();
   lcd.setCursor(0, 0);
-  /*
-  lcd.write('A');
-  lcd.setCursor(0, 1);
-  lcd.write('i');
-  lcd.setCursor(0, 2);
-  lcd.write('r');
-  lcd.setCursor(0, 3);
-  lcd.write(' ');
-  lcd.setCursor(0, 4);
-  lcd.write('T');
-  lcd.setCursor(0, 5);
-  lcd.write('e');
-  lcd.setCursor(0, 6);
-  lcd.write('m');
-  lcd.setCursor(0, 7);
-  lcd.write('p');
-  lcd.setCursor(0, 8);
-  lcd.write(':');
-  lcd.setCursor(0, 9);
-  lcd.write(' ');
-  lcd.setCursor(0, 10);
-  lcd.write(29);
-  */
 
   lcd.print("ERROR!");
 
@@ -502,29 +547,6 @@ void LCDError() {
 void LCDDisabled() {
   lcd.clear();
   lcd.setCursor(0, 0);
-  /*
-  lcd.write('A');
-  lcd.setCursor(0, 1);
-  lcd.write('i');
-  lcd.setCursor(0, 2);
-  lcd.write('r');
-  lcd.setCursor(0, 3);
-  lcd.write(' ');
-  lcd.setCursor(0, 4);
-  lcd.write('T');
-  lcd.setCursor(0, 5);
-  lcd.write('e');
-  lcd.setCursor(0, 6);
-  lcd.write('m');
-  lcd.setCursor(0, 7);
-  lcd.write('p');
-  lcd.setCursor(0, 8);
-  lcd.write(':');
-  lcd.setCursor(0, 9);
-  lcd.write(' ');
-  lcd.setCursor(0, 10);
-  lcd.write(29);
-  */
 
   lcd.print("DISABLED");
 
@@ -545,19 +567,34 @@ void timeToSerial(){
   */
 
 
+  // DateTime now = rtc.now();
+  // char hour = now.hour() + '0';
+  // char minute = now.minute() + '0';
+  // char second = now.second() + '0';
+  // U0putchar(hour);
+  // U0putchar(':');
+  // U0putchar(minute);
+  // U0putchar(':');
+  // U0putchar(second);
+  // U0putchar(' ');
+
   DateTime now = rtc.now();
-  char hour = now.hour() + '0';
-  char minute = now.minute() + '0';
-  char second = now.second() + '0';
-  U0putchar(hour);
-  U0putchar(':');
-  U0putchar(minute);
-  U0putchar(':');
-  U0putchar(second);
+  sprintf(t, "Time: %02d:%02d:%02d", now.hour(), now.minute(), now.second());
+  for (int i=0; i<sizeof(t); i++) {
+    U0putchar(t[i]);
+  }
   U0putchar(' ');
+  delay(10);
 }
 
 void stateToSerial(int state){
+  U0putchar('S');
+  U0putchar('t');
+  U0putchar('a');
+  U0putchar('t');
+  U0putchar('e');
+  U0putchar(':');
+  U0putchar(' ');
  if (state==0) {
   U0putchar('D');
   U0putchar('I');
@@ -599,6 +636,15 @@ void startStepperMotor() {
   myStepper.step(stepsPerRevolution);
   delay(1000);
 
+  // Print date and time
+  DateTime now = rtc.now();
+  sprintf(dt, "Date/Time: %02d:%02d:%02d %02d/%02d/%02d", now.hour(), now.minute(), now.second(), now.day(), now.month(), now.year());
+  for (int i=0; i<sizeof(dt); i++) {
+    U0putchar(dt[i]);
+  }
+  U0putchar(' ');
+  delay(10);
+
   // Print vent position change to serial port
   U0putchar('S');
   U0putchar('T');
@@ -626,6 +672,15 @@ void stopStepperMotor() {
   myStepper.setSpeed(0);
   myStepper.step(stepsPerRevolution);
   delay(1000);
+
+  // Print date and time
+  DateTime now = rtc.now();
+  sprintf(dt, "Date/Time: %02d:%02d:%02d %02d/%02d/%02d", now.hour(), now.minute(), now.second(), now.day(), now.month(), now.year());
+  for (int i=0; i<sizeof(dt); i++) {
+    U0putchar(dt[i]);
+  }
+  U0putchar(' ');
+  delay(10);
 }
 
 int readWaterSensor() {
@@ -634,7 +689,7 @@ int readWaterSensor() {
   WRITE_HIGH_PB(7);
   delay(10);
   //Read water level
-  waterLevel = adc_read(12);
+  waterLevel = adc_read(14);
   // Water sensor OFF
   WRITE_LOW_PB(7);
   return waterLevel;
